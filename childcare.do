@@ -387,10 +387,10 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 	msize(medsmall) mlabcolor(none) ///
 	mlabel(cond(@pval<0.01, "**", cond(@pval<0.05, "*", ""))) ///
 	addplot(scatter @at @ul, ms(i) mlabel(@mlbl) mlabcolor(black) mlabpos(3)) ///
-	scheme(s2color) drop(_cons) xline(1, lpattern(-) lwidth(0.1)) ///
+	scheme(s2color) drop(_cons) xline(1, lpattern(l) lwidth(0.1)) ///
 	xtitle(" " "Odds Ratio") ///
 	ysize(7) xsize(4) scale(0.9) ///
-	xlabel(-0(0.5)3, grid) ///
+	xlabel(-0(0.5)3, grid glwidth(0.2) glcolor(dknavy) glpattern(.)) ///
 	grid(none) graphregion(color(white))
 graph export log_model_childcare.png, width(1500) replace
 
