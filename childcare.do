@@ -153,7 +153,7 @@ svy, subpop(youngchild): tabulate sc_hispanic_r
 // ************* ************************************* // 
 svy, subpop(youngchild): proportion jobchange, over(year) percent cformat(%3.1f)
 estimates store Overall
-esttab using jobchange_overall_year.csv, wide ci plain nomtitles noobs replace
+esttab Overall using jobchange_overall_year.csv, wide ci plain nomtitles noobs replace
 
 // ratio of 2020 to 2019
 display _b[1.jobchange@2020.year] / _b[1.jobchange@2019.year]
@@ -170,8 +170,8 @@ scalar overall_19v20 = r(p)
 // ************************************************** // 
 svy, subpop(youngchild): proportion jobchange, over(year cshcn_ind) percent cformat(%3.1f)
 estimates store CSHCN
-estimates store nonCSHCN
-esttab using jobchange_by_cshcn_year.csv, wide ci plain nomtitles noobs replace
+estimates store nonCSHCN // saving twice for coefplot
+esttab CSHCN using jobchange_by_cshcn_year.csv, wide ci plain nomtitles noobs replace
 
 // tests
 
