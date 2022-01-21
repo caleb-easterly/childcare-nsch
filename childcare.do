@@ -366,12 +366,12 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 	keep(1.year16 1.year17 1.year18 0.year19 1.year20 ///
 		 1.cshcn_ind 1.cshcn_ind#1.year20 ///
 		 *.sc_age_years *.race_cat *.sc_hispanic_r ///
-		 *.family_stru *.totyoung *.a1_sex *.higrade_tvis *.povcat) ///
+		 *.family_stru *.totyoung *.a1_sex *.higrade_tvis *.povcat_i) ///
 	coeflabels(1.year16 = "2016" 1.year17 = "2017" 1.year18 = "2018" ///
 		0.year19placeholder = "2019" 1.year20 = "2020" ///
 		1.cshcn_ind = "SHCN" ///
 		1.cshcn_ind#1.year20 = "SHCN x 2020 Interaction", labsize(small)) ///
-	headings(1.cshcn_ind = "{bf}SHCN" ///
+	headings(1.cshcn_ind = "{bf}SHCN Status" ///
 		0.sc_age_years = "{bf}Age (years)" ///
 		1.race_cat = "{bf}Race" ///
 		1.sc_hispanic_r = "{bf} Hispanic/Latino" ///
@@ -388,9 +388,9 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 	mlabel(cond(@pval<0.01, "**", cond(@pval<0.05, "*", ""))) ///
 	addplot(scatter @at @ul, ms(i) mlabel(@mlbl) mlabcolor(black) mlabpos(3)) ///
 	scheme(s2color) drop(_cons) xline(1, lpattern(-) lwidth(0.1)) ///
-	xtitle("Odds Ratio") ///
-	ysize(7) xsize(5) scale(0.8) ///
-	xlabel(0(0.5)3, grid) ///
+	xtitle(" " "Odds Ratio") ///
+	ysize(7) xsize(4) scale(0.9) ///
+	xlabel(-0(0.5)3, grid) ///
 	grid(none) graphregion(color(white))
 graph export log_model_childcare.png, width(1500) replace
 
