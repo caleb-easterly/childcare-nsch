@@ -1,0 +1,1545 @@
+
+. 
+. // required packages
+. * ssc install mat2txt
+. 
+. // make labeled datasets for appending
+. clear
+
+. forvalues yr = 2016/2020 {
+  2.         quietly do nsch_`yr'_topical
+  3.         if `yr' > 2016 { // replace stratum to match (as recommended by NSCH)
+  4.                 replace stratum = "2" if stratum == "2A"
+  5.                 destring stratum, replace
+  6.         }
+  7.         save nsch_`yr'_topical_labeled, replace
+  8. }
+file nsch_2016_topical_labeled.dta saved
+(2,177 real changes made)
+stratum: all characters numeric; replaced as byte
+file nsch_2017_topical_labeled.dta saved
+(2,278 real changes made)
+stratum: all characters numeric; replaced as byte
+file nsch_2018_topical_labeled.dta saved
+(2,320 real changes made)
+stratum: all characters numeric; replaced as byte
+file nsch_2019_topical_labeled.dta saved
+(3,193 real changes made)
+stratum: all characters numeric; replaced as byte
+file nsch_2020_topical_labeled.dta saved
+
+. 
+. // ************************************************** //
+. // Read in data
+. // ************************************************** // 
+. clear 
+
+. use nsch_2020_topical_labeled
+
+. forvalues yr = 2016/2019 {
+  2.         quietly append using nsch_`yr'_topical_labeled
+  3. }
+
+. 
+. // ************************************************** //
+. // Set as survey data
+. // ************************************************** // 
+. // make one strata variable (per NSCH recommendation)
+. egen stratacross = group(fipsst stratum)
+
+. // since we're not pooling years (yet) don't need to adjust the weights
+. svyset hhid [pweight=fwc], strata(stratacross) 
+
+      pweight: fwc
+          VCE: linearized
+  Single unit: missing
+     Strata 1: stratacross
+         SU 1: hhid
+        FPC 1: <zero>
+
+. 
+. // ************************************************** //
+. // Define variables
+. // ************************************************** // 
+. 
+. // redefine CSHCN to match other vars
+. gen cshcn_ind = sc_cshcn == 1
+
+. tabulate cshcn_ind sc_cshcn, missing
+
+           |  Special Health Care
+           |    Needs Status of
+           |    Selected Child
+ cshcn_ind |      SHCN   Non-SHCN |     Total
+-----------+----------------------+----------
+         0 |         0    134,206 |   134,206 
+         1 |    40,345          0 |    40,345 
+-----------+----------------------+----------
+     Total |    40,345    134,206 |   174,551 
+
+. label define ci 0 "No" 1 "Yes"
+
+. label values cshcn_ind ci
+
+. svy: tabulate cshcn_ind year
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Design df         =      174,449
+
+----------------------------------------------------
+          |               Survey Year               
+cshcn_ind |  2016   2017   2018   2019   2020  Total
+----------+-----------------------------------------
+       No | .1616  .1641  .1628  .1617  .1596  .8099
+      Yes | .0388  .0364  .0377   .038  .0391  .1901
+          | 
+    Total | .2003  .2006  .2006  .1998  .1988      1
+----------------------------------------------------
+  Key:  cell proportion
+
+  Pearson:
+    Uncorrected   chi2(4)         =   30.6933
+    Design-based  F(3.77,  6.6e+05)=    1.7283    P = 0.1446
+
+. 
+. // define the subpopulation we are using
+. // job change due to child care only asked for kids <= 5 (form T1)
+. gen youngchild = formtype == "T1"
+
+. // starting with 49,546 kids aged 0-5
+. tabulate formtype youngchild 
+
+           |      youngchild
+ Form Type |         0          1 |     Total
+-----------+----------------------+----------
+        T1 |         0     49,546 |    49,546 
+        T2 |    53,032          0 |    53,032 
+        T3 |    71,973          0 |    71,973 
+-----------+----------------------+----------
+     Total |   125,005     49,546 |   174,551 
+
+. 
+. // jobchange variable
+. codebook k6q27
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+k6q27                                                                                                                Job Change Because Problems with Child Care
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  k6q27_lab
+
+                 range:  [1,2]                        units:  1
+         unique values:  2                        missing .:  0/174,551
+       unique mv codes:  2                       missing .*:  125,746/174,551
+
+            tabulation:  Freq.   Numeric  Label
+                         4,240         1  Yes
+                        44,565         2  No
+                           741        .m  No valid response
+                       125,005        .n  Not in universe
+
+. gen jobchange = 0
+
+. replace jobchange = 1 if k6q27 == 1
+(4,240 real changes made)
+
+. replace jobchange = . if missing(k6q27)
+(125,746 real changes made, 125,746 to missing)
+
+. label define jc 0 "No" 1 "Yes"
+
+. label values jobchange jc
+
+. tabulate jobchange k6q27, missing // same number of missings
+
+           | Job Change Because Problems with Child Care
+ jobchange |       Yes         No  No valid   Not in un |     Total
+-----------+--------------------------------------------+----------
+        No |         0     44,565          0          0 |    44,565 
+       Yes |     4,240          0          0          0 |     4,240 
+         . |         0          0        741    125,005 |   125,746 
+-----------+--------------------------------------------+----------
+     Total |     4,240     44,565        741    125,005 |   174,551 
+
+. 
+. // unweighted obs by year
+. tabulate year if youngchild
+
+                   Survey Year |      Freq.     Percent        Cum.
+-------------------------------+-----------------------------------
+                          2016 |     14,494       29.25       29.25
+                          2017 |      6,161       12.43       41.69
+                          2018 |      8,576       17.31       59.00
+                          2019 |      8,174       16.50       75.50
+                          2020 |     12,141       24.50      100.00
+-------------------------------+-----------------------------------
+                         Total |     49,546      100.00
+
+. tabulate year jobchange if youngchild, row
+
++----------------+
+| Key            |
+|----------------|
+|   frequency    |
+| row percentage |
++----------------+
+
+                      |       jobchange
+          Survey Year |        No        Yes |     Total
+----------------------+----------------------+----------
+                 2016 |    13,270      1,048 |    14,318 
+                      |     92.68       7.32 |    100.00 
+----------------------+----------------------+----------
+                 2017 |     5,583        497 |     6,080 
+                      |     91.83       8.17 |    100.00 
+----------------------+----------------------+----------
+                 2018 |     7,819        652 |     8,471 
+                      |     92.30       7.70 |    100.00 
+----------------------+----------------------+----------
+                 2019 |     7,378        661 |     8,039 
+                      |     91.78       8.22 |    100.00 
+----------------------+----------------------+----------
+                 2020 |    10,515      1,382 |    11,897 
+                      |     88.38      11.62 |    100.00 
+----------------------+----------------------+----------
+                Total |    44,565      4,240 |    48,805 
+                      |     91.31       8.69 |    100.00 
+
+. 
+. // weighted obs by year
+. svy, subpop(youngchild): tabulate year, count cellwidth(20) format(%15.2gc)
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Subpop. no. obs   =       49,546
+                                              Subpop. size      =  117,742,655
+                                              Design df         =      174,449
+
+--------------------------------
+Survey    |
+Year      |                count
+----------+---------------------
+     2016 |           23,707,331
+     2017 |           23,698,416
+     2018 |           23,590,173
+     2019 |           23,475,958
+     2020 |           23,270,778
+          | 
+    Total |          117,742,655
+--------------------------------
+  Key:  count                 =  weighted count
+
+. svy, subpop(youngchild): tabulate year jobchange, count cellwidth(20) format(%15.3gc) row
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      173,810
+Number of PSUs     =   173,810                Population size   =  363,682,218
+                                              Subpop. no. obs   =       48,805
+                                              Subpop. size      =  115,309,937
+                                              Design df         =      173,708
+
+----------------------------------------------------------------------------
+Survey    |                            jobchange                            
+Year      |                   No                   Yes                 Total
+----------+-----------------------------------------------------------------
+     2016 |           21,380,802             1,925,864            23,306,666
+          |                 .917                 .0826                     1
+          | 
+     2017 |           21,318,753             2,123,438            23,442,192
+          |                 .909                 .0906                     1
+          | 
+     2018 |           20,938,126             2,055,271            22,993,397
+          |                 .911                 .0894                     1
+          | 
+     2019 |           20,725,028             2,144,454            22,869,482
+          |                 .906                 .0938                     1
+          | 
+     2020 |           19,845,527             2,852,672            22,698,200
+          |                 .874                  .126                     1
+          | 
+    Total |          104,208,237            11,101,700           115,309,937
+          |                 .904                 .0963                     1
+----------------------------------------------------------------------------
+  Key:  weighted count
+        row proportion
+
+  Pearson:
+    Uncorrected   chi2(4)         =  449.6841
+    Design-based  F(3.78,  6.6e+05)=    5.9961    P = 0.0001
+
+. 
+. // *** child's age *** //
+. codebook sc_age_years if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+sc_age_years                                                                                                                    Age of Selected Child - In Years
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  sc_age_years_lab, but 6 nonmissing values are not labeled
+
+                 range:  [0,5]                        units:  1
+         unique values:  6                        missing .:  0/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                         5,960         0  
+                         7,052         1  
+                         9,663         2  
+                         9,011         3  
+                         8,940         4  
+                         8,920         5  
+
+. svy, subpop(youngchild): tabulate sc_age_years
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Subpop. no. obs   =       49,546
+                                              Subpop. size      =  117,742,655
+                                              Design df         =      174,449
+
+----------------------
+Age of    |
+Selected  |
+Child -   |
+In Years  | proportion
+----------+-----------
+        0 |      .1568
+        1 |      .1647
+        2 |      .1692
+        3 |      .1711
+        4 |      .1735
+        5 |      .1647
+        6 |          0
+        7 |          0
+        8 |          0
+        9 |          0
+       10 |          0
+       11 |          0
+       12 |          0
+       13 |          0
+       14 |          0
+       15 |          0
+       16 |          0
+       17 |          0
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+  Table contains a zero in the marginals.
+  Statistics cannot be computed.
+
+. 
+. // *** family structure *** //
+. 
+. // 2016 - family
+. label define family_stru_lab 1 "Two parents, married" 2 "Two parents, unmarried" ///
+>         3 "Single parent" 4 "Other"
+
+. 
+. codebook family if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+family                                                                                                                                          Family Structure
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  family_lab
+
+                 range:  [1,9]                        units:  1
+         unique values:  9                        missing .:  35,052/49,546
+       unique mv codes:  2                       missing .*:  228/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                        11,157         1  Two biogical/adoptive parents,
+                                          currently married
+                         1,014         2  Two biogical/adoptive parents,
+                                          not currently married
+                            77         3  Two parents (at least one not
+                                          biological/adoptive), currently
+                                          married
+                            82         4  Two parents (at least one not
+                                          biological/adoptive), not
+                                          currently married
+                           512         5  One mother, currently married
+                                          (living apart) or formerly
+                                          married
+                           695         6  One mother, never married
+                           146         7  Other, currently married or
+                                          formerly married
+                           104         8  Other, never married
+                           479         9  Other, no parent in household
+                        35,052         .  
+                           228        .m  No valid response
+
+. gen family_stru16 = 1 if family == 1 | family == 3 // 2 parents, married
+(137,772 missing values generated)
+
+. replace family_stru16 = 2 if family == 2 | family == 4 // 2 parents, unmarried
+(3,226 real changes made)
+
+. replace family_stru16 = 3 if inrange(family, 5, 6) // 1 parent 
+(5,965 real changes made)
+
+. replace family_stru16 = 4 if inrange(family, 7, 9)
+(3,393 real changes made)
+
+. replace family_stru16 = .m if family == .m
+(849 real changes made, 849 to missing)
+
+. label values family_stru16 family_stru_lab
+
+. svy, subpop(youngchild): tabulate family_stru16 if year == 2016, missing
+(running tabulate on estimation sample)
+
+Number of strata   =       102                 Number of obs     =      50,212
+Number of PSUs     =    50,212                 Population size   =  73,350,040
+                                               Subpop. no. obs   =      14,494
+                                               Subpop. size      =  23,707,331
+                                               Design df         =      50,110
+
+----------------------
+family_st |
+ru16      | proportion
+----------+-----------
+ Two pare |       .662
+ Two pare |      .1117
+ Single p |      .1176
+    Other |      .0783
+       .m |      .0304
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // 2017 - 2020 - family_r
+. codebook family_r if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+family_r                                                                                                                                        Family Structure
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  family_r_lab
+
+                 range:  [1,8]                        units:  1
+         unique values:  8                        missing .:  14,494/49,546
+       unique mv codes:  2                       missing .*:  740/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                        25,139         1  Two biogical/adoptive parents,
+                                          currently married
+                         2,496         2  Two biogical/adoptive parents,
+                                          not currently married
+                           241         3  Two parents (at least one not
+                                          biological/adoptive), currently
+                                          married
+                           228         4  Two parents (at least one not
+                                          biological/adoptive), not
+                                          currently married
+                         3,989         5  Single mother
+                         1,001         6  Single father
+                           929         7  Grandparent household
+                           289         8  Other relation
+                        14,494         .  
+                           740        .m  No valid response
+
+. gen family_stru1720 = 1 if family_r == 1 | family_r == 3
+(88,659 missing values generated)
+
+. replace family_stru1720 = 2 if family_r == 2 | family_r == 4
+(7,754 real changes made)
+
+. replace family_stru1720 = 3 if inrange(family_r, 5, 6)
+(23,042 real changes made)
+
+. replace family_stru1720 = 4 if inrange(family_r, 7, 8)
+(5,023 real changes made)
+
+. replace family_stru1720 = .m if family_r == .m
+(2,628 real changes made, 2,628 to missing)
+
+. label values family_stru1720 family_stru_lab
+
+. svy, subpop(youngchild): tabulate family_stru1720 if year > 2016, missing
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      124,339
+Number of PSUs     =   124,339                Population size   =  292,764,897
+                                              Subpop. no. obs   =       35,052
+                                              Subpop. size      = 94,035,324.3
+                                              Design df         =      124,237
+
+----------------------
+family_st |
+ru1720    | proportion
+----------+-----------
+ Two pare |      .6414
+ Two pare |      .0999
+ Single p |      .1725
+    Other |      .0549
+       .m |      .0313
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // combine
+. clonevar family_stru = family_stru16 if year == 2016
+(125,188 missing values generated)
+
+. replace family_stru = family_stru1720 if year > 2016
+(124,339 real changes made, 2,628 to missing)
+
+. codebook family_stru
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+family_stru                                                                                                                                          (unlabeled)
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (float)
+                 label:  family_stru_lab
+
+                 range:  [1,4]                        units:  1
+         unique values:  4                        missing .:  0/174,551
+       unique mv codes:  1                       missing .*:  3,477/174,551
+
+            tabulation:  Freq.   Numeric  Label
+                       122,671         1  Two parents, married
+                        10,980         2  Two parents, unmarried
+                        29,007         3  Single parent
+                         8,416         4  Other
+                         3,477        .m  
+
+. svy, subpop(youngchild): tabulate family_stru, missing
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Subpop. no. obs   =       49,546
+                                              Subpop. size      =  117,742,655
+                                              Design df         =      174,449
+
+----------------------
+family_st |
+ru        | proportion
+----------+-----------
+ Two pare |      .6455
+ Two pare |      .1022
+ Single p |      .1615
+    Other |      .0596
+       .m |      .0311
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // *** number of young kids in household *** //
+. codebook totage_0_5 if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+totage_0_5                                                                                                            Count of Children Ages 0 to 5 in Household
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  totage_0_5_lab, but 4 nonmissing values are not labeled
+
+                 range:  [1,4]                        units:  1
+         unique values:  4                        missing .:  0/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                        30,396         1  
+                        16,729         2  
+                         2,249         3  
+                           172         4  
+
+. // both 3 and 4 are small groups, and 2 is smaller than 1
+. gen totyoung = totage_0_5
+
+. recode totyoung 4 = 3
+(totyoung: 172 changes made)
+
+. label define ty 1 "1" 2 "2" 3 "3-4"
+
+. label values totyoung ty
+
+. codebook totyoung if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+totyoung                                                                                                                                             (unlabeled)
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (float)
+                 label:  ty, but 2 nonmissing values are not labeled
+
+                 range:  [1,3]                        units:  1
+         unique values:  3                        missing .:  0/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                        30,396         1  
+                        16,729         2  
+                         2,421         3  3-4
+
+. 
+. /// *** respondent's sex *** ///
+> codebook a1_sex
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+a1_sex                                                                                                                                             Adult 1 - Sex
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  a1_sex_lab
+
+                 range:  [1,2]                        units:  1
+         unique values:  2                        missing .:  0/174,551
+       unique mv codes:  1                       missing .*:  3,986/174,551
+
+            tabulation:  Freq.   Numeric  Label
+                        53,715         1  Male
+                       116,850         2  Female
+                         3,986        .m  No valid response
+
+. svy, subpop(youngchild): tabulate a1_sex
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      173,463
+Number of PSUs     =   173,463                Population size   =  362,246,116
+                                              Subpop. no. obs   =       48,458
+                                              Subpop. size      =  113,873,835
+                                              Design df         =      173,361
+
+----------------------
+Adult 1 - |
+Sex       | proportion
+----------+-----------
+     Male |      .2958
+   Female |      .7042
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // *** highest education among household adults *** //
+. codebook higrade_tvis if youngchild // more detailed than higrade
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+higrade_tvis                                                                                            Highest Level of Education among Reported Adults, Detail
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  higrade_tvis_lab
+
+                 range:  [1,4]                        units:  1
+         unique values:  4                        missing .:  0/49,546
+       unique mv codes:  1                       missing .*:  313/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                           930         1  Less than high school
+                         5,395         2  High school (including
+                                          vocational, trade, or business
+                                          school)
+                        10,376         3  Some college or Associate Degree
+                        32,532         4  College degree or higher
+                           313        .m  No valid response
+
+. label define hsimp 1 "Less than High School" 2 "High School" 3 "Some college" 4 "College deg. or higher"
+
+. label values higrade_tvis hsimp
+
+. svy, subpop(youngchild): tabulate higrade_tvis
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,238
+Number of PSUs     =   174,238                Population size   =  365,239,894
+                                              Subpop. no. obs   =       49,233
+                                              Subpop. size      =  116,867,612
+                                              Design df         =      174,136
+
+----------------------
+Highest   |
+Level of  |
+Education |
+among     |
+Reported  |
+Adults,   |
+Detail    | proportion
+----------+-----------
+ Less tha |      .0685
+ High Sch |      .1779
+ Some col |      .2155
+  College |      .5381
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // *** race *** //
+. codebook sc_race_r if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+sc_race_r                                                                                                                       Race of Selected Child, Detailed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  sc_race_r_lab, but 1 nonmissing value is not labeled
+
+                 range:  [1,7]                        units:  1
+         unique values:  7                        missing .:  0/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                        38,131         1  White alone
+                         3,020         2  Black or African American alone
+                           388         3  American Indian or Alaska Native
+                                          alone
+                         2,567         4  Asian alone
+                           180         5  Native Hawaiian and Other
+                                          Pacific Islander alone
+                           696         6  
+                         4,564         7  Two or More Races
+
+. 
+. // combine asian and pacific islander
+. gen race_cat = sc_race_r
+
+. recode race_cat 5 = 4 // recode native hawaiian/PI to AA 
+(race_cat: 792 changes made)
+
+. 
+. // recode "american indian" to "some other race" (because both small groups) 
+. recode race_cat 3 = 6 
+(race_cat: 1474 changes made)
+
+. label define rc 1 "White" 2 "Black" 4 "AA/PI" 6 "Other" 7 "2+ Races"
+
+. label values race_cat rc
+
+. table race_cat sc_race_r if youngchild
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+          |                                                          Race of Selected Child, Detailed                                                         
+ race_cat |          White alone Black or African Ame American Indian or A          Asian alone Native Hawaiian and                     6    Two or More Races
+----------+---------------------------------------------------------------------------------------------------------------------------------------------------
+    White |               38,131                                                                                                                              
+    Black |                                     3,020                                                                                                         
+    AA/PI |                                                                               2,567                  180                                          
+    Other |                                                            388                                                            696                     
+ 2+ Races |                                                                                                                                              4,564
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+. svy, subpop(youngchild): tabulate race_cat, missing
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Subpop. no. obs   =       49,546
+                                              Subpop. size      =  117,742,655
+                                              Design df         =      174,449
+
+----------------------
+ race_cat | proportion
+----------+-----------
+    White |      .6731
+    Black |      .1263
+    AA/PI |      .0602
+    Other |      .0456
+ 2+ Races |      .0949
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. // *** ethnicity *** // 
+. codebook sc_hispanic_r if youngchild
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+sc_hispanic_r                                                                                                          Hispanic Origin of Selected Child, Recode
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                  type:  numeric (byte)
+                 label:  sc_hispanic_r_lab
+
+                 range:  [1,2]                        units:  1
+         unique values:  2                        missing .:  0/49,546
+
+            tabulation:  Freq.   Numeric  Label
+                         6,007         1  Hispanic or Latino Origin
+                        43,539         2  Not Hispanic or Latino Origin
+
+. label define hisp 1 "Yes" 2 "No"
+
+. label values sc_hispanic_r hisp
+
+. svy, subpop(youngchild): tabulate sc_hispanic_r 
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      174,551
+Number of PSUs     =   174,551                Population size   =  366,114,936
+                                              Subpop. no. obs   =       49,546
+                                              Subpop. size      =  117,742,655
+                                              Design df         =      174,449
+
+----------------------
+Hispanic  |
+Origin of |
+Selected  |
+Child,    |
+Recode    | proportion
+----------+-----------
+      Yes |       .242
+       No |       .758
+          | 
+    Total |          1
+----------------------
+  Key:  proportion  =  cell proportion
+
+. 
+. 
+. // ************************************************** //
+. // Job Change Due to Child Care - Overall by Year 
+. // ************* ************************************* // 
+. svy, subpop(youngchild): proportion jobchange, over(year) percent cformat(%3.1f)
+(running proportion on estimation sample)
+
+Survey: Percent estimation
+
+Number of strata =     102        Number of obs   =      173,810
+Number of PSUs   = 173,810        Population size =  363,682,218
+                                  Subpop. no. obs =       48,805
+                                  Subpop. size    =  115,309,937
+                                  Design df       =      173,708
+
+----------------------------------------------------------------
+               |             Linearized            Logit
+               |    Percent   Std. Err.     [95% Conf. Interval]
+---------------+------------------------------------------------
+jobchange@year |
+      No 2016  |       91.7        0.5          90.7        92.7
+      No 2017  |       90.9        0.8          89.3        92.4
+      No 2018  |       91.1        0.6          89.8        92.2
+      No 2019  |       90.6        0.7          89.1        92.0
+      No 2020  |       87.4        0.7          85.9        88.8
+     Yes 2016  |        8.3        0.5           7.3         9.3
+     Yes 2017  |        9.1        0.8           7.6        10.7
+     Yes 2018  |        8.9        0.6           7.8        10.2
+     Yes 2019  |        9.4        0.7           8.0        10.9
+     Yes 2020  |       12.6        0.7          11.2        14.1
+----------------------------------------------------------------
+
+. estimates store Overall
+
+. esttab using jobchange_overall_year.csv, wide ci plain nomtitles noobs replace
+(tabulating estimates stored by eststo; specify "." to tabulate the active results)
+(output written to jobchange_overall_year.csv)
+
+. 
+. // ratio of 2020 to 2019
+. display _b[1.jobchange@2020.year] / _b[1.jobchange@2019.year]
+1.3402941
+
+. 
+. // difference
+. display _b[1.jobchange@2020.year] - _b[1.jobchange@2019.year]
+.03190912
+
+. 
+. // test
+. test 1.jobchange@2020.year = 1.jobchange@2019.year 
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@2019.year + 1.jobchange@2020.year = 0
+
+       F(  1,173708) =    9.48
+            Prob > F =    0.0021
+
+. scalar overall_19v20 = r(p)  
+
+. 
+. // ************************************************** //
+. // Job Change Due to Child Care - By SHCN by Year
+. // ************************************************** // 
+. svy, subpop(youngchild): proportion jobchange, over(year cshcn_ind) percent cformat(%3.1f)
+(running proportion on estimation sample)
+
+Survey: Percent estimation
+
+Number of strata =     102                  Number of obs   =      173,810
+Number of PSUs   = 173,810                  Population size =  363,682,218
+                                            Subpop. no. obs =       48,805
+                                            Subpop. size    =  115,309,937
+                                            Design df       =      173,708
+
+--------------------------------------------------------------------------
+                         |             Linearized            Logit
+                         |    Percent   Std. Err.     [95% Conf. Interval]
+-------------------------+------------------------------------------------
+jobchange@year#cshcn_ind |
+             No 2016#No  |       92.9        0.5          91.8        93.8
+            No 2016#Yes  |       82.5        2.1          77.9        86.3
+             No 2017#No  |       92.2        0.8          90.4        93.6
+            No 2017#Yes  |       79.9        3.0          73.4        85.2
+             No 2018#No  |       91.9        0.7          90.5        93.1
+            No 2018#Yes  |       84.2        2.0          79.9        87.7
+             No 2019#No  |       91.6        0.7          90.0        93.0
+            No 2019#Yes  |       82.3        2.5          76.7        86.7
+             No 2020#No  |       88.9        0.7          87.4        90.3
+            No 2020#Yes  |       75.2        3.1          68.7        80.7
+            Yes 2016#No  |        7.1        0.5           6.2         8.2
+           Yes 2016#Yes  |       17.5        2.1          13.7        22.1
+            Yes 2017#No  |        7.8        0.8           6.4         9.6
+           Yes 2017#Yes  |       20.1        3.0          14.8        26.6
+            Yes 2018#No  |        8.1        0.7           6.9         9.5
+           Yes 2018#Yes  |       15.8        2.0          12.3        20.1
+            Yes 2019#No  |        8.4        0.7           7.0        10.0
+           Yes 2019#Yes  |       17.7        2.5          13.3        23.3
+            Yes 2020#No  |       11.1        0.7           9.7        12.6
+           Yes 2020#Yes  |       24.8        3.1          19.3        31.3
+--------------------------------------------------------------------------
+
+. estimates store CSHCN
+
+. estimates store nonCSHCN
+
+. esttab using jobchange_by_cshcn_year.csv, wide ci plain nomtitles noobs replace
+(tabulating estimates stored by eststo; specify "." to tabulate the active results)
+(output written to jobchange_by_cshcn_year.csv)
+
+. 
+. // tests
+. 
+. // 2020 vs. 2019 for CSHCN
+. test 1.jobchange@2020.year#1.cshcn_ind = 1.jobchange@2019.year#1.cshcn_ind
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@2019.year#1.cshcn_ind + 1.jobchange@2020.year#1.cshcn_ind = 0
+
+       F(  1,173708) =    3.15
+            Prob > F =    0.0760
+
+. scalar cshcn_19v20 = r(p)
+
+. 
+. // 2020 vs. 2019 for non-CSHCN
+. test 1.jobchange@2020.year#0.cshcn_ind = 1.jobchange@2019.year#0.cshcn_ind 
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@2019.year#0bn.cshcn_ind + 1.jobchange@2020.year#0bn.cshcn_ind = 0
+
+       F(  1,173708) =    6.52
+            Prob > F =    0.0107
+
+. scalar ncshcn_19v20 = r(p)
+
+. 
+. // For 2020, CSHCN vs. non-CSHCN
+. // ratio
+. display _b[1.jobchange@2020.year#1.cshcn_ind] / _b[1.jobchange@2020.year#0.cshcn_ind]
+2.2391258
+
+. // difference
+. display _b[1.jobchange@2020.year#1.cshcn_ind] - _b[1.jobchange@2020.year#0.cshcn_ind]
+.13718405
+
+. // test
+. test 1.jobchange@2020.year#1.cshcn_ind = 1.jobchange@2020.year#0.cshcn_ind
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@2020.year#0bn.cshcn_ind + 1.jobchange@2020.year#1.cshcn_ind = 0
+
+       F(  1,173708) =   18.98
+            Prob > F =    0.0000
+
+. scalar cshcn_v_ncshcn_20 = r(p)
+
+. 
+. // ************************************************************ //
+. // Job Change Due to Child Care - Overall, By 2020 vs. 2016-19
+. // ************************************************************ // 
+. gen is2020 = year == 2020
+
+. tabulate is2020 year, missing
+
+           |                      Survey Year
+    is2020 |      2016       2017       2018       2019       2020 |     Total
+-----------+-------------------------------------------------------+----------
+         0 |    50,212     21,599     30,530     29,433          0 |   131,774 
+         1 |         0          0          0          0     42,777 |    42,777 
+-----------+-------------------------------------------------------+----------
+     Total |    50,212     21,599     30,530     29,433     42,777 |   174,551 
+
+. 
+. // adjust FWC for pooling 2016-19 and svyset again
+. gen fwc2 = fwc
+
+. replace fwc2 = fwc2/4 if year < 2020
+(131,774 real changes made)
+
+. svyset, clear
+
+. svyset hhid [pweight=fwc2], strata(stratacross)
+
+      pweight: fwc2
+          VCE: linearized
+  Single unit: missing
+     Strata 1: stratacross
+         SU 1: hhid
+        FPC 1: <zero>
+
+. 
+. // make sure totals make sense - (they are good, about the same)
+. svy, subpop(youngchild): tabulate is2020 jobchange, count cellwidth(20) format(%15.3gc) row
+(running tabulate on estimation sample)
+
+Number of strata   =       102                Number of obs     =      173,810
+Number of PSUs     =   173,810                Population size   =  145,071,846
+                                              Subpop. no. obs   =       48,805
+                                              Subpop. size      = 45,851,134.1
+                                              Design df         =      173,708
+
+----------------------------------------------------------------------------
+          |                            jobchange                            
+   is2020 |                   No                   Yes                 Total
+----------+-----------------------------------------------------------------
+        0 |           21,090,677             2,062,257            23,152,934
+          |                 .911                 .0891                     1
+          | 
+        1 |           19,845,527             2,852,672            22,698,200
+          |                 .874                  .126                     1
+          | 
+    Total |           40,936,205             4,914,929            45,851,134
+          |                 .893                  .107                     1
+----------------------------------------------------------------------------
+  Key:  weighted count
+        row proportion
+
+  Pearson:
+    Uncorrected   chi2(1)         =  608.3903
+    Design-based  F(1, 173708)    =   23.9667     P = 0.0000
+
+. 
+. // job change overall
+. svy, subpop(youngchild): prop jobchange, over(is2020) percent cformat(%3.1f)
+(running proportion on estimation sample)
+
+Survey: Percent estimation
+
+Number of strata =     102          Number of obs   =      173,810
+Number of PSUs   = 173,810          Population size =  145,071,846
+                                    Subpop. no. obs =       48,805
+                                    Subpop. size    = 45,851,134.1
+                                    Design df       =      173,708
+
+------------------------------------------------------------------
+                 |             Linearized            Logit
+                 |    Percent   Std. Err.     [95% Conf. Interval]
+-----------------+------------------------------------------------
+jobchange@is2020 |
+           No 0  |       91.1        0.3          90.4        91.7
+           No 1  |       87.4        0.7          85.9        88.8
+          Yes 0  |        8.9        0.3           8.3         9.6
+          Yes 1  |       12.6        0.7          11.2        14.1
+------------------------------------------------------------------
+
+. esttab . using jobchange_pooled_overall.csv, wide ci plain nomtitles noobs replace
+(output written to jobchange_pooled_overall.csv)
+
+. 
+. // save for plotting
+. global overall1619 = _b[1.jobchange@0.is2020] 
+
+. display $overall1619
+.08907108
+
+. 
+. global overall1619_label_val = $overall1619 * 1.03 // position the label
+
+. global overall1619_lab : display %2.1f $overall1619 * 100 // write the label
+
+. 
+. // ratio of 2020 to 2016-19
+. display _b[1.jobchange@1.is2020] / _b[1.jobchange@0.is2020]
+1.4109895
+
+. 
+. // difference 
+. display _b[1.jobchange@1.is2020] - _b[1.jobchange@0.is2020]
+.03660728
+
+. 
+. // test
+. test 1.jobchange@1.is2020 = 1.jobchange@0.is2020
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@0bn.is2020 + 1.jobchange@1.is2020 = 0
+
+       F(  1,173708) =   20.28
+            Prob > F =    0.0000
+
+. scalar overall_1619p_v20 = r(p)
+
+. 
+. // *********************************************************** //
+. // Job Change Due to Child Care - By SHCN, By 2020 vs. 2016-19
+. // *********************************************************** //
+. svy, subpop(youngchild): prop jobchange, over(is2020 cshcn_ind) percent cformat(%3.1f)
+(running proportion on estimation sample)
+
+Survey: Percent estimation
+
+Number of strata =     102                    Number of obs   =      173,810
+Number of PSUs   = 173,810                    Population size =  145,071,846
+                                              Subpop. no. obs =       48,805
+                                              Subpop. size    = 45,851,134.1
+                                              Design df       =      173,708
+
+----------------------------------------------------------------------------
+                           |             Linearized            Logit
+                           |    Percent   Std. Err.     [95% Conf. Interval]
+---------------------------+------------------------------------------------
+jobchange@is2020#cshcn_ind |
+                  No 0#No  |       92.1        0.3          91.4        92.8
+                 No 0#Yes  |       82.2        1.2          79.7        84.5
+                  No 1#No  |       88.9        0.7          87.4        90.3
+                 No 1#Yes  |       75.2        3.1          68.7        80.7
+                 Yes 0#No  |        7.9        0.3           7.2         8.6
+                Yes 0#Yes  |       17.8        1.2          15.5        20.3
+                 Yes 1#No  |       11.1        0.7           9.7        12.6
+                Yes 1#Yes  |       24.8        3.1          19.3        31.3
+----------------------------------------------------------------------------
+
+. esttab . using jobchange_pooled_by_cshcn.csv, wide ci plain nomtitles noobs replace
+(output written to jobchange_pooled_by_cshcn.csv)
+
+. 
+. // cshcn
+. global cshcn1619 = _b[1.jobchange@0.is2020#1.cshcn_ind]
+
+. display $cshcn1619
+.17772902
+
+. global cshcn1619_lab : display %2.1f $cshcn1619 * 100 // for labeling
+
+. 
+. // non cshcn 
+. global noncshcn1619 = _b[1.jobchange@0.is2020#0.cshcn_ind] 
+
+. display $noncshcn1619
+.07874102
+
+. 
+. global noncshcn1619_label_val = $noncshcn1619 * 0.97 // position label
+
+. global noncshcn1619_lab : display %2.1f $noncshcn1619 * 100 // for labeling
+
+. 
+. 
+. // tests
+. test 1.jobchange@1.is2020#1.cshcn_ind = 1.jobchange@0.is2020#1.cshcn_ind
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@0bn.is2020#1.cshcn_ind + 1.jobchange@1.is2020#1.cshcn_ind = 0
+
+       F(  1,173708) =    4.52
+            Prob > F =    0.0335
+
+. scalar cshcn_1619Pv20 = r(p)
+
+. 
+. test 1.jobchange@1.is2020#0.cshcn_ind = 1.jobchange@0.is2020#0.cshcn_ind
+
+Adjusted Wald test
+
+ ( 1)  - 1.jobchange@0bn.is2020#0bn.cshcn_ind + 1.jobchange@1.is2020#0bn.cshcn_ind = 0
+
+       F(  1,173708) =   15.66
+            Prob > F =    0.0001
+
+. scalar ncshcn_1619Pv20 = r(p)
+
+. 
+. // ******************************************** //
+. // collect test results 
+. // ******************************************** //
+. matrix P = (scalar(overall_19v20)     \ ///
+>                         scalar(cshcn_19v20)       \ ///
+>                         scalar(ncshcn_19v20)      \ ///
+>                         scalar(cshcn_v_ncshcn_20) \ ///
+>                         scalar(overall_1619p_v20) \ ///
+>                         scalar(cshcn_1619Pv20)    \ ///
+>                         scalar(ncshcn_1619Pv20))
+
+. matrix rownames P = "Overall, 2019 v. 2020" ///
+>         "CSHCN, 2019 v. 2020" ///
+>         "NCSHCN, 2019 v. 2020" ///
+>         "CSHCH v. NCSHCN, 2020" ///
+>         "Overall, 2016-19 (Pooled) v. 2020" ///
+>         "CSHCN, 2016-19 (Pooled) v. 2020" ///
+>         "NCSHCN, 2016-19 (Pooled) v. 2020"
+
+. matrix colnames P = "Pval"
+
+. matlist P, format(%5.4f) twidth(50)
+
+                                                   |   Pval 
+---------------------------------------------------+--------
+                             Overall, 2019 v. 2020 | 0.0021 
+                               CSHCN, 2019 v. 2020 | 0.0760 
+                              NCSHCN, 2019 v. 2020 | 0.0107 
+                             CSHCH v. NCSHCN, 2020 | 0.0000 
+                 Overall, 2016-19 (Pooled) v. 2020 | 0.0000 
+                   CSHCN, 2016-19 (Pooled) v. 2020 | 0.0335 
+                  NCSHCN, 2016-19 (Pooled) v. 2020 | 0.0001 
+
+. mat2txt, matrix(P) saving(prevtest_pvals.txt) format(%5.4f) replace
+
+. 
+. // ******************************************** //
+. // display 
+. // ******************************************** //
+. // colors from https://davidmathlogic.com/colorblind/
+. global cshcn_col = "136 34 85"
+
+. global overall_col = "68 170 153"
+
+. global noncshcn_col = "51 34 136"
+
+. 
+. coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
+>                 rename(1.jobchange@2016.year#1.cshcn_ind = "2016" ///
+>                    1.jobchange@2017.year#1.cshcn_ind = "2017" ///
+>                    1.jobchange@2018.year#1.cshcn_ind = "2018" ///
+>                    1.jobchange@2019.year#1.cshcn_ind = "2019" ///
+>                    1.jobchange@2020.year#1.cshcn_ind = "2020") ///
+>                 lcolor("$cshcn_col") mcolor("$cshcn_col") ///
+>                 ciopts(lcolor("$cshcn_col")) lpattern(l) label("SHCN")) ///
+>         (Overall, keep(1.jobchange@*.year) ///
+>                 rename(1.jobchange@2016.year = "2016" ///
+>                    1.jobchange@2017.year = "2017" ///
+>                    1.jobchange@2018.year = "2018" ///
+>                    1.jobchange@2019.year = "2019" ///
+>                    1.jobchange@2020.year = "2020") ///
+>                 lcolor("$overall_col") mcolor("$overall_col") offset(0.05) ///
+>                 ciopts(lcolor("$overall_col")) lpattern(l) label("Overall")) ///
+>         (nonCSHCN, keep(1.jobchange@*.year#0.cshcn_ind) ///
+>                 rename(1.jobchange@2016.year#0.cshcn_ind = "2016" ///
+>                    1.jobchange@2017.year#0.cshcn_ind = "2017" ///
+>                    1.jobchange@2018.year#0.cshcn_ind = "2018" ///
+>                    1.jobchange@2019.year#0.cshcn_ind = "2019" ///
+>                    1.jobchange@2020.year#0.cshcn_ind = "2020") ///
+>                 lcolor("$noncshcn_col") mcolor("$noncshcn_col") offset(-0.05) ///
+>                 ciopts(lcolor("$noncshcn_col")) label("No SHCN") lpattern(l)), ///
+>         yaxis(1 2) ///
+>         vertical recast(connected) scheme(s1color) nooffset ///
+>         xtitle(Year) ytitle("Childcare-Related" "Employment Disruption (%)", axis(2)) connect(l) ///
+>         msize(medsmall) ///
+>         ylabel(0 "0" 0.05 "5" 0.1 "10" 0.15 "15" 0.20 "20" 0.25 "25" 0.30 "30", ///
+>                 grid axis(2) angle(0) labsize(small)) ///
+>         ylabel($cshcn1619 "$cshcn1619_lab%" ///
+>                    $overall1619_label_val "$overall1619_lab%" ///
+>                    $noncshcn1619_label_val "$noncshcn1619_lab%", ///
+>                 axis(1) format(%3.2g) angle(0) labsize(small) noticks) ///
+>         yline($cshcn1619, lcolor($cshcn_col) lwidth(0.2) lpattern(-) axis(2)) ///
+>         yline($overall1619, lcolor($overall_col) lwidth(0.2) lpattern(-) axis(2)) ///
+>         yline($noncshcn1619, lcolor($noncshcn_col) lwidth(0.2) lpattern(-) axis(2)) ///
+>         legend(row(1)) yscale(titlegap(6pt) axis(2)) xscale(titlegap(6pt))
+
+. graph export prevtrends.png, width(1200) replace
+(file prevtrends.png written in PNG format)
+
+. 
+. // ************************************************** //
+. // Job Change Due to Child Care - Adjusted
+. // ************************************************** // 
+. // set back to unpooled weights
+. svyset, clear
+
+. svyset hhid [pweight=fwc], strata(stratacross) 
+
+      pweight: fwc
+          VCE: linearized
+  Single unit: missing
+     Strata 1: stratacross
+         SU 1: hhid
+        FPC 1: <zero>
+
+. 
+. // year dummies to keep the right levels in the regression 
+. gen year20 = year == 2020
+
+. gen year16 = year == 2016
+
+. gen year17 = year == 2017
+
+. gen year18 = year == 2018
+
+. // use 2019 as the reference (not a real value and not really estimated)
+. // see logistic model below
+. gen year19placeholder = 0  
+
+. 
+. // Income: Use imputed estimates following instructions from NSCH
+. gen fpl_i0=. // need to have a variable that's all missing
+(174,551 missing values generated)
+
+. save nsch_all_labeled, replace // need to save
+(note: file nsch_all_labeled.dta not found)
+file nsch_all_labeled.dta saved
+
+. mi import wide, imputed(fpl_i0=fpl_i1-fpl_i6)
+
+. mi passive: generate povcat_i = 1
+m=0:
+m=1:
+m=2:
+m=3:
+m=4:
+m=5:
+m=6:
+
+. mi passive: replace povcat_i = 2 if fpl_i0 >= 100 & fpl_i0 < 200
+m=0:
+(0 real changes made)
+m=1:
+(20,357 real changes made)
+m=2:
+(20,395 real changes made)
+m=3:
+(20,411 real changes made)
+m=4:
+(20,372 real changes made)
+m=5:
+(20,363 real changes made)
+m=6:
+(20,451 real changes made)
+
+. mi passive: replace povcat_i = 3 if fpl_i0 >= 200 & fpl_i0 < 400
+m=0:
+(0 real changes made)
+m=1:
+(38,219 real changes made)
+m=2:
+(38,156 real changes made)
+m=3:
+(38,119 real changes made)
+m=4:
+(38,190 real changes made)
+m=5:
+(38,072 real changes made)
+m=6:
+(38,272 real changes made)
+
+. mi passive: replace povcat_i = 4 if fpl_i0 >= 400
+m=0:
+(174,551 real changes made)
+m=1:
+(100,976 real changes made)
+m=2:
+(100,964 real changes made)
+m=3:
+(100,815 real changes made)
+m=4:
+(100,844 real changes made)
+m=5:
+(100,987 real changes made)
+m=6:
+(100,849 real changes made)
+
+. label define povcat_label 1 "<100% FPL" 2 "100-199% FPL" 3 "200-399% FPL" 4 "400%+ FPL"
+
+. label values povcat_i povcat_label
+
+. mi est: svy, subpop(youngchild): proportion povcat_i
+
+Multiple-imputation estimates   Imputations     =            6
+Survey: Proportion estimation   Number of obs   =      174,551
+
+Number of strata  =       102   Population size =  366,114,936
+Number of PSUs    =   174,551   Subpop. no. obs =       49,546
+                                Subpop. size    =  117,742,655
+                                Average RVI     =       0.1243
+                                Largest FMI     =       0.2261
+                                Complete DF     =       174449
+DF adjustment:   Small sample   DF:     min     =       110.85
+                                        avg     =       470.96
+Within VCE type:   Linearized           max     =     1,195.54
+
+---------------------------------------------------------------
+              |                                   Normal
+              | Proportion   Std. Err.     [95% Conf. Interval]
+--------------+------------------------------------------------
+     povcat_i |
+   <100% FPL  |   .1572301   .0049912      .1473396    .1671207
+100-199% FPL  |   .1685561   .0046539      .1593819    .1777303
+200-399% FPL  |   .2229691   .0042094      .2146916    .2312467
+   400%+ FPL  |   .4512446   .0049825      .4414692      .46102
+---------------------------------------------------------------
+
+. 
+. // Estimate model
+. 
+. mi est, allbaselevels or post: svy, subpop(youngchild): logistic jobchange /// 
+>         i.year16 i.year17 i.year18 i.year19placeholder i.year20 ///
+>         b0.cshcn_ind b0.cshcn_ind#i.year20 ///
+>         b5.sc_age_years i.race_cat b2.sc_hispanic_r /// 
+>         i.family_stru b2.a1_sex b4.higrade_tvis b1.totyoung b4.povcat_i
+
+Multiple-imputation estimates                 Imputations       =            6
+Survey: Logistic regression                   Number of obs     =      173,023
+
+Number of strata  =       102                 Population size   =  360,819,045
+Number of PSUs    =   173,023                 Subpop. no. obs   =       48,018
+                                              Subpop. size      =  112,446,763
+                                              Average RVI       =       0.0273
+                                              Largest FMI       =       0.2725
+                                              Complete DF       =       172921
+DF adjustment:   Small sample                 DF:     min       =        77.46
+                                                      avg       =   106,788.84
+                                                      max       =   172,866.49
+Model F test:       Equal FMI                 F(  28,87310.7)   =        14.04
+Within VCE type:   Linearized                 Prob > F          =       0.0000
+
+-----------------------------------------------------------------------------------------
+              jobchange | Odds Ratio   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                 year16 |
+                     0  |          1  (base)
+                     1  |   1.210794   .1607258     1.44   0.150     .9326542    1.571883
+                        |
+                 year17 |
+                     0  |          1  (base)
+                     1  |   .9816943    .127506    -0.14   0.887     .7610591    1.266293
+                        |
+                 year18 |
+                     0  |          1  (base)
+                     1  |   .9924145   .1133598    -0.07   0.947     .7933464    1.241433
+                        |
+      year19placeholder |
+                     0  |          1  (omitted)
+                        |
+                 year20 |
+                     0  |          1  (base)
+                     1  |   1.411733   .1599123     3.04   0.002     1.130663    1.762674
+                        |
+              cshcn_ind |
+                    No  |          1  (base)
+                   Yes  |   2.725787   .2697867    10.13   0.000     2.245138    3.309336
+                        |
+       cshcn_ind#year20 |
+                  No#0  |          1  (base)
+                  No#1  |          1  (base)
+                 Yes#0  |          1  (base)
+                 Yes#1  |   1.061143   .2204682     0.29   0.775     .7061918    1.594501
+                        |
+           sc_age_years |
+                     0  |   2.430739   .3185989     6.78   0.000     1.880052    3.142728
+                     1  |   1.841714   .2280912     4.93   0.000     1.444783    2.347697
+                     2  |   1.457133   .1859104     2.95   0.003     1.134741    1.871121
+                     3  |   1.225984   .1537407     1.62   0.104     .9588302    1.567573
+                     4  |   1.126452   .1516751     0.88   0.377     .8651653     1.46665
+                     5  |          1  (base)
+                        |
+               race_cat |
+                 White  |          1  (base)
+                 Black  |   1.531553   .1778075     3.67   0.000     1.219859    1.922891
+                 AA/PI  |   1.560417   .2718754     2.55   0.011     1.109003    2.195577
+                 Other  |   1.151242   .2445507     0.66   0.507     .7591893    1.745754
+              2+ Races  |   1.609685   .1759923     4.35   0.000     1.299198    1.994372
+                        |
+          sc_hispanic_r |
+                   Yes  |   1.143358   .1169242     1.31   0.190     .9356952    1.397109
+                    No  |          1  (base)
+                        |
+            family_stru |
+  Two parents, married  |          1  (base)
+Two parents, unmarried  |    1.85295   .2261143     5.05   0.000     1.458779    2.353628
+         Single parent  |   1.256583   .1405418     2.04   0.041     1.009211    1.564588
+                 Other  |   .7694471   .1227098    -1.64   0.100     .5628981    1.051787
+                        |
+                 a1_sex |
+                  Male  |   .7474212   .0668269    -3.26   0.001     .6272763     .890578
+                Female  |          1  (base)
+                        |
+           higrade_tvis |
+ Less than High School  |   .7061648   .1434265    -1.71   0.087     .4742517    1.051486
+           High School  |   1.028439   .1160272     0.25   0.804     .8243373    1.283076
+          Some college  |   1.081748   .0973524     0.87   0.383     .9067775    1.290481
+College deg. or higher  |          1  (base)
+                        |
+               totyoung |
+                     1  |          1  (base)
+                     2  |   .9240727   .0726828    -1.00   0.315     .7920533    1.078097
+                   3-4  |   .8501086   .1282555    -1.08   0.282     .6324886    1.142605
+                        |
+               povcat_i |
+             <100% FPL  |    1.69234   .2747975     3.24   0.002     1.224838     2.33828
+          100-199% FPL  |   1.466002   .2128278     2.64   0.010     1.098226    1.956941
+          200-399% FPL  |    1.43216   .1599708     3.22   0.001     1.149314    1.784615
+             400%+ FPL  |          1  (base)
+                        |
+                  _cons |    .036637   .0052027   -23.29   0.000     .0277329       .0484
+-----------------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
+
+. eststo reg
+
+. esttab reg using logmod_est_w_ci.csv, b(%4.3f) ci wide eform plain nomtitles replace
+(output written to logmod_est_w_ci.csv)
+
+. esttab reg using logmod_est_w_p.csv, b(%4.3f) p wide eform plain nomtitles replace
+(output written to logmod_est_w_p.csv)
+
+. 
+. coefplot reg, omitted base eform /// all base labels, omitted (year19), and eform for ORs 
+>         keep(1.year16 1.year17 1.year18 0.year19 1.year20 ///
+>                  1.cshcn_ind 1.cshcn_ind#1.year20 ///
+>                  *.sc_age_years *.race_cat *.sc_hispanic_r ///
+>                  *.family_stru *.totyoung *.a1_sex *.higrade_tvis *.povcat) ///
+>         coeflabels(1.year16 = "2016" 1.year17 = "2017" 1.year18 = "2018" ///
+>                 0.year19placeholder = "2019" 1.year20 = "2020" ///
+>                 1.cshcn_ind = "SHCN" ///
+>                 1.cshcn_ind#1.year20 = "SHCN x 2020 Interaction", labsize(small)) ///
+>         headings(1.cshcn_ind = "{bf}SHCN" ///
+>                 0.sc_age_years = "{bf}Age (years)" ///
+>                 1.race_cat = "{bf}Race" ///
+>                 1.sc_hispanic_r = "{bf} Hispanic/Latino" ///
+>                 1.a1_sex = "{bf} Respondent Sex" ///
+>                 1.totyoung = "{bf} # of Children Aged 0-5" ///
+>                 1.higrade_tvis = "{bf}Education (Household)" ///
+>                 1.family_stru = "{bf}Family Structure" ///
+>                 1.povcat_i = "{bf} Family income", labsize(small) offset(-.1)) ///
+>         groups(1.year16 1.year17 1.year18 1.year20 = "{it}Year" ///
+>                 1.cshcn_ind 0.sc_age_years 1.race_cat 2.sc_hispanic_r = "{it}Child Variables" ///
+>                 1.a1_sex 3.totyoung 1.higrade_tvis 1.family_stru 4.povcat_i = "{it}Caregiver/Household Variables", ///
+>                 gap(3)) ///
+>         msize(medsmall) mlabcolor(none) ///
+>         mlabel(cond(@pval<0.01, "**", cond(@pval<0.05, "*", ""))) ///
+>         addplot(scatter @at @ul, ms(i) mlabel(@mlbl) mlabcolor(black) mlabpos(3)) ///
+>         scheme(s2color) drop(_cons) xline(1, lpattern(-) lwidth(0.1)) ///
+>         xtitle("Odds Ratio") ///
+>         ysize(7) xsize(5) scale(0.8) ///
+>         xlabel(0(0.5)3, grid) ///
+>         grid(none) graphregion(color(white))
+(reg: CI1 missing for some coefficients)
+
+. graph export log_model_childcare.png, width(1500) replace
+(file log_model_childcare.png written in PNG format)
+
+. 
+. log close
