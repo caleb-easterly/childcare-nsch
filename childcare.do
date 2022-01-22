@@ -321,7 +321,7 @@ coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
 	yline($overall1619, lcolor($overall_col) lwidth(0.2) lpattern(-) axis(2)) ///
 	yline($noncshcn1619, lcolor($noncshcn_col) lwidth(0.2) lpattern(-) axis(2)) ///
 	legend(row(1)) yscale(titlegap(6pt) axis(2)) xscale(titlegap(6pt))
-graph export prevtrends.png, width(1200) replace
+graph export prevtrends.jpg, width(1200) replace
 
 // ************************************************** //
 // Job Change Due to Child Care - Adjusted
@@ -392,6 +392,6 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 	ysize(7) xsize(4) scale(0.9) ///
 	xlabel(-0(0.5)3, grid glwidth(0.2) glcolor(dknavy) glpattern(.)) ///
 	grid(none) graphregion(color(white))
-graph export log_model_childcare.png, width(1500) replace
+graph export log_model_childcare.jpg, width(1500) replace
 
 log close
