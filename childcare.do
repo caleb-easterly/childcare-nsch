@@ -379,7 +379,7 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 		1.totyoung = "{bf} # of Children Aged 0-5" ///
 		1.higrade_tvis = "{bf}Education (Household)" ///
 		1.family_stru = "{bf}Family Structure" ///
-		1.povcat_i = "{bf} Family income", labsize(small) offset(-.1)) ///
+		1.povcat_i = "{bf} Family Income", labsize(small) offset(-.1)) ///
 	groups(1.year16 1.year17 1.year18 1.year20 = "{it}Year" ///
 		1.cshcn_ind 0.sc_age_years 1.race_cat 2.sc_hispanic_r = "{it}Child Variables" ///
 		1.a1_sex 3.totyoung 1.higrade_tvis 1.family_stru 4.povcat_i = "{it}Caregiver/Household Variables", ///
