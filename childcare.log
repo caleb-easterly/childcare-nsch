@@ -1256,11 +1256,11 @@ Adjusted Wald test
 >         yline($cshcn1619, lcolor($cshcn_col) lwidth(0.2) lpattern(-) axis(2)) ///
 >         yline($overall1619, lcolor($overall_col) lwidth(0.2) lpattern(-) axis(2)) ///
 >         yline($noncshcn1619, lcolor($noncshcn_col) lwidth(0.2) lpattern(-) axis(2)) ///
->         legend(row(1)) yscale(titlegap(6pt) axis(2)) xscale(titlegap(6pt))
+>         legend(row(1)) yscale(titlegap(6pt) axis(2)) xscale(titlegap(6pt)) ///
+>         xsize(6) ysize(4)
 
-. graph export prevtrends.jpg, width(1200) replace
-(note: file prevtrends.jpg not found)
-(file prevtrends.jpg written in JPEG format)
+. graph export prevtrends.pdf, replace
+(file prevtrends.pdf written in PDF format)
 
 . 
 . // ************************************************** //
@@ -1531,14 +1531,13 @@ Note: _cons estimates baseline odds.
 >         addplot(scatter @at @ul, ms(i) mlabel(@mlbl) mlabcolor(black) mlabpos(3)) ///
 >         scheme(s2color) drop(_cons) xline(1, lpattern(l) lwidth(0.1)) ///
 >         xtitle(" " "Odds Ratio") ///
->         ysize(7) xsize(4) scale(0.9) ///
+>         ysize(8) xsize(5) scale(0.9) ///
 >         xlabel(-0(0.5)3, grid glwidth(0.2) glcolor(dknavy) glpattern(.)) ///
 >         grid(none) graphregion(color(white))
 (reg: CI1 missing for some coefficients)
 
-. graph export log_model_childcare.jpg, width(1500) replace
-(note: file log_model_childcare.jpg not found)
-(file log_model_childcare.jpg written in JPEG format)
+. graph export log_model_childcare.pdf, replace
+(file log_model_childcare.pdf written in PDF format)
 
 . 
 . log close
