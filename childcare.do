@@ -290,7 +290,7 @@ coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
 		   1.jobchange@2019.year#1.cshcn_ind = "2019" ///
 		   1.jobchange@2020.year#1.cshcn_ind = "2020") ///
 		lcolor("$cshcn_col") mcolor("$cshcn_col") ///
-		ciopts(lcolor("$cshcn_col")) lpattern(l) label("SHCN")) ///
+		ciopts(lcolor("$cshcn_col")) lpattern(l) label("CSHCN")) ///
 	(Overall, keep(1.jobchange@*.year) ///
 		rename(1.jobchange@2016.year = "2016" ///
 		   1.jobchange@2017.year = "2017" ///
@@ -306,7 +306,7 @@ coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
 		   1.jobchange@2019.year#0.cshcn_ind = "2019" ///
 		   1.jobchange@2020.year#0.cshcn_ind = "2020") ///
 		lcolor("$noncshcn_col") mcolor("$noncshcn_col") offset(-0.05) ///
-		ciopts(lcolor("$noncshcn_col")) label("No SHCN") lpattern(l)), ///
+		ciopts(lcolor("$noncshcn_col")) label("non-CSHCN") lpattern(l)), ///
 	yaxis(1 2) ///
 	vertical recast(connected) scheme(s1color) nooffset ///
 	xtitle(Year) ytitle("Childcare-Related" "Employment Disruption (%)", axis(2)) connect(l) ///
@@ -369,9 +369,9 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 		 *.family_stru *.totyoung *.a1_sex *.higrade_tvis *.povcat_i) ///
 	coeflabels(1.year16 = "2016" 1.year17 = "2017" 1.year18 = "2018" ///
 		0.year19placeholder = "2019" 1.year20 = "2020" ///
-		1.cshcn_ind = "SHCN" ///
-		1.cshcn_ind#1.year20 = "SHCN x 2020 Interaction", labsize(small)) ///
-	headings(1.cshcn_ind = "{bf}SHCN Status" ///
+		1.cshcn_ind = "CSHCN" ///
+		1.cshcn_ind#1.year20 = "CSHCN x 2020 Interaction", labsize(small)) ///
+	headings(1.cshcn_ind = "{bf}CSHCN Status" ///
 		0.sc_age_years = "{bf}Age (years)" ///
 		1.race_cat = "{bf}Race" ///
 		1.sc_hispanic_r = "{bf} Hispanic/Latino" ///
