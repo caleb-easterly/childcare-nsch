@@ -152,8 +152,16 @@ svy, subpop(youngchild): tabulate sc_hispanic_r
 // Job Change Due to Child Care - Overall by Year 
 // ************* ************************************* // 
 svy, subpop(youngchild): proportion jobchange, over(year) percent cformat(%3.1f)
-estimates store Overall
-esttab Overall using jobchange_overall_year.csv, wide ci plain nomtitles noobs replace
+// https://www.statalist.org/forums/forum/general-stata-discussion/general/1618810-saving-95-ci-values-after-proportion-using-parmest-or-estout
+eststo Overall
+mat ll = r(table)["ll", 1...]
+mat ul = r(table)["ul", 1...]
+mat bb = r(table)["b", 1...]
+estadd matrix ll=ll: Overall
+estadd matrix ul=ul: Overall
+estadd matrix bb=bb: Overall
+esttab Overall using jobchange_overall_year.csv, ///
+	cells("bb(fmt(1)) ll(fmt(1)) ul(fmt(1))") wide ci plain nomtitles noobs replace
 
 // ratio of 2020 to 2019
 display _b[1.jobchange@2020.year] / _b[1.jobchange@2019.year]
@@ -170,8 +178,15 @@ scalar overall_19v20 = r(p)
 // ************************************************** // 
 svy, subpop(youngchild): proportion jobchange, over(year cshcn_ind) percent cformat(%3.1f)
 estimates store CSHCN
-estimates store nonCSHCN // saving twice for coefplot
-esttab CSHCN using jobchange_by_cshcn_year.csv, wide ci plain nomtitles noobs replace
+
+mat ll = r(table)["ll", 1...]
+mat ul = r(table)["ul", 1...]
+mat bb = r(table)["b", 1...]
+estadd matrix ll=ll: CSHCN
+estadd matrix ul=ul: CSHCN
+estadd matrix bb=bb: CSHCN
+esttab CSHCN using jobchange_by_cshcn_year.csv, ///
+	cells("bb(fmt(1)) ll(fmt(1)) ul(fmt(1))") wide ci plain nomtitles noobs replace
 
 // tests
 
@@ -209,14 +224,23 @@ svy, subpop(youngchild): tabulate is2020 jobchange, count cellwidth(20) format(%
 
 // job change overall
 svy, subpop(youngchild): prop jobchange, over(is2020) percent cformat(%3.1f)
-esttab . using jobchange_pooled_overall.csv, wide ci plain nomtitles noobs replace
+eststo Pooled
+mat ll = r(table)["ll", 1...]
+mat ul = r(table)["ul", 1...]
+mat bb = r(table)["b", 1...]
+estadd matrix ll=ll: Pooled
+estadd matrix ul=ul: Pooled
+estadd matrix bb=bb: Pooled
+
+esttab Pooled using jobchange_pooled_overall.csv, ///
+	cells("bb(fmt(1)) ll(fmt(1)) ul(fmt(1))") wide ci plain nomtitles noobs replace
 
 // save for plotting
-global overall1619 = _b[1.jobchange@0.is2020] 
+global overall1619 = _b[1.jobchange@0.is2020] * 100
 display $overall1619
 
 global overall1619_label_val = $overall1619 * 1.03 // position the label
-global overall1619_lab : display %2.1f $overall1619 * 100 // write the label
+global overall1619_lab : display %2.1f $overall1619 // write the label
 
 // ratio of 2020 to 2016-19
 display _b[1.jobchange@1.is2020] / _b[1.jobchange@0.is2020]
@@ -232,20 +256,28 @@ scalar overall_1619p_v20 = r(p)
 // Job Change Due to Child Care - By SHCN, By 2020 vs. 2016-19
 // *********************************************************** //
 svy, subpop(youngchild): prop jobchange, over(is2020 cshcn_ind) percent cformat(%3.1f)
-esttab . using jobchange_pooled_by_cshcn.csv, wide ci plain nomtitles noobs replace
+eststo PooledSHCN
+mat ll = r(table)["ll", 1...]
+mat ul = r(table)["ul", 1...]
+mat bb = r(table)["b", 1...]
+estadd matrix ll=ll: PooledSHCN
+estadd matrix ul=ul: PooledSHCN
+estadd matrix bb=bb: PooledSHCN
+
+esttab PooledSHCN using jobchange_pooled_by_cshcn.csv, ///
+	cells("bb(fmt(1)) ll(fmt(1)) ul(fmt(1))") wide ci plain nomtitles noobs replace
 
 // cshcn
-global cshcn1619 = _b[1.jobchange@0.is2020#1.cshcn_ind]
+global cshcn1619 = _b[1.jobchange@0.is2020#1.cshcn_ind] * 100
 display $cshcn1619
-global cshcn1619_lab : display %2.1f $cshcn1619 * 100 // for labeling
+global cshcn1619_lab : display %2.1f $cshcn1619 // for labeling
 
 // non cshcn 
-global noncshcn1619 = _b[1.jobchange@0.is2020#0.cshcn_ind] 
+global noncshcn1619 = _b[1.jobchange@0.is2020#0.cshcn_ind] * 100
 display $noncshcn1619
 
 global noncshcn1619_label_val = $noncshcn1619 * 0.97 // position label
-global noncshcn1619_lab : display %2.1f $noncshcn1619 * 100 // for labeling
-
+global noncshcn1619_lab : display %2.1f $noncshcn1619 // for labeling
 
 // tests
 test 1.jobchange@1.is2020#1.cshcn_ind = 1.jobchange@0.is2020#1.cshcn_ind
@@ -290,7 +322,8 @@ coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
 		   1.jobchange@2019.year#1.cshcn_ind = "2019" ///
 		   1.jobchange@2020.year#1.cshcn_ind = "2020") ///
 		lcolor("$cshcn_col") mcolor("$cshcn_col") ///
-		ciopts(lcolor("$cshcn_col")) lpattern(l) label("CSHCN")) ///
+		ciopts(lcolor("$cshcn_col")) lpattern(l) label("CSHCN") ///
+		ci((ll ul)) b(bb)) ///
 	(Overall, keep(1.jobchange@*.year) ///
 		rename(1.jobchange@2016.year = "2016" ///
 		   1.jobchange@2017.year = "2017" ///
@@ -298,20 +331,22 @@ coefplot (CSHCN, keep(1.jobchange@*.year#1.cshcn_ind) ///
 		   1.jobchange@2019.year = "2019" ///
 		   1.jobchange@2020.year = "2020") ///
 		lcolor("$overall_col") mcolor("$overall_col") offset(0.05) ///
-		ciopts(lcolor("$overall_col")) lpattern(l) label("Overall")) ///
-	(nonCSHCN, keep(1.jobchange@*.year#0.cshcn_ind) ///
+		ciopts(lcolor("$overall_col")) lpattern(l) label("Overall") ///
+		ci((ll ul)) b(bb)) ///
+	(CSHCN, keep(1.jobchange@*.year#0.cshcn_ind) ///
 		rename(1.jobchange@2016.year#0.cshcn_ind = "2016" ///
 		   1.jobchange@2017.year#0.cshcn_ind = "2017" ///
 		   1.jobchange@2018.year#0.cshcn_ind = "2018" ///
 		   1.jobchange@2019.year#0.cshcn_ind = "2019" ///
 		   1.jobchange@2020.year#0.cshcn_ind = "2020") ///
 		lcolor("$noncshcn_col") mcolor("$noncshcn_col") offset(-0.05) ///
-		ciopts(lcolor("$noncshcn_col")) label("non-CSHCN") lpattern(l)), ///
+		ciopts(lcolor("$noncshcn_col")) label("non-CSHCN") lpattern(l) ///
+		ci((ll ul)) b(bb)), ///
 	yaxis(1 2) ///
 	vertical recast(connected) scheme(s1color) nooffset ///
 	xtitle(Year) ytitle("Childcare-Related" "Employment Disruption (%)", axis(2)) connect(l) ///
 	msize(medsmall) ///
-	ylabel(0 "0" 0.05 "5" 0.1 "10" 0.15 "15" 0.20 "20" 0.25 "25" 0.30 "30", ///
+	ylabel(0 5 10 15 20 25 30, ///
 		grid axis(2) angle(0) labsize(small)) ///
 	ylabel($cshcn1619 "$cshcn1619_lab%" ///
 		   $overall1619_label_val "$overall1619_lab%" ///
