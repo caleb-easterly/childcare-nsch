@@ -373,7 +373,7 @@ gen year17 = year == 2017
 gen year18 = year == 2018
 // use 2019 as the reference (not a real value and not really estimated)
 // see logistic model below
-gen year19placeholder = 0  
+gen year19placeholder = 1
 
 // Income: Use imputed estimates following instructions from NSCH
 gen fpl_i0=. // need to have a variable that's all missing
@@ -399,12 +399,12 @@ esttab reg using logmod_est_w_ci.csv, b(%4.3f) ci wide eform plain nomtitles rep
 esttab reg using logmod_est_w_p.csv, b(%4.3f) p wide eform plain nomtitles replace
 
 coefplot reg, omitted base eform /// all base labels, omitted (year19), and eform for ORs 
-	keep(1.year16 1.year17 1.year18 0.year19 1.year20 ///
+	keep(1.year16 1.year17 1.year18 1.year19placeholder 1.year20 ///
 		 1.cshcn_ind 1.cshcn_ind#1.year20 ///
 		 *.sc_age_years *.race_cat *.sc_hispanic_r ///
 		 *.family_stru *.totyoung *.a1_sex *.higrade_tvis *.povcat_i) ///
 	coeflabels(1.year16 = "2016" 1.year17 = "2017" 1.year18 = "2018" ///
-		0.year19placeholder = "2019" 1.year20 = "2020" ///
+		1.year19placeholder = "2019" 1.year20 = "2020" ///
 		1.cshcn_ind = "CSHCN" ///
 		1.cshcn_ind#1.year20 = "CSHCN x 2020 Interaction", labsize(small)) ///
 	headings(1.cshcn_ind = "{bf}CSHCN Status" ///
@@ -416,7 +416,7 @@ coefplot reg, omitted base eform /// all base labels, omitted (year19), and efor
 		1.higrade_tvis = "{bf}Education (Household)" ///
 		1.family_stru = "{bf}Family Structure" ///
 		1.povcat_i = "{bf} Family Income", labsize(small) offset(-.1)) ///
-	groups(1.year16 1.year17 1.year18 1.year20 = "{it}Year" ///
+	groups(1.year16 1.year17 1.year18 1.year19placeholder 1.year20 = "{it}Year" ///
 		1.cshcn_ind 0.sc_age_years 1.race_cat 2.sc_hispanic_r = "{it}Child Variables" ///
 		1.a1_sex 3.totyoung 1.higrade_tvis 1.family_stru 4.povcat_i = "{it}Caregiver/Household Variables", ///
 		gap(3)) ///
